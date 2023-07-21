@@ -7,10 +7,12 @@
  */
 
 import React from 'react';
-import {View, Text} from 'react-native';
+import {View, Text, SafeAreaView, NativeModules} from 'react-native';
 import {API_KEY} from './src/app/util/WeatherAPI';
 import styles from './src/app/feature/weather.style';
 import Weather from './src/app/feature/weather.component';
+
+const PermissionModule = NativeModules.PermissionModule;
 
 class App extends React.Component {
   constructor(props) {
@@ -48,6 +50,15 @@ class App extends React.Component {
   }
 
   fetchWeather(lat, lon) {
+    PermissionModule.checkLocationPermission()
+      .then((hasPermission) => {
+        if (hasPermission) console.log(`Permission granted`);
+        else console.log(`Permission not granted`);
+      })
+      .catch((err) => {
+        console.error(`Error checking for permission`, err);
+      });
+
     let reqStr = `http://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&APPID=${API_KEY}&units=metric`;
 
     console.log(reqStr);
@@ -88,12 +99,12 @@ class App extends React.Component {
       );
     } else {
       return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container}>
           <Weather
             weatherCondition={weatherCondition}
             temperature={temperature}
           />
-        </View>
+        </SafeAreaView>
       );
     }
   }
