@@ -1,7 +1,4 @@
 /**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
  * @format
  * @flow strict-local
  */
@@ -11,10 +8,13 @@ import {View, Text, SafeAreaView, NativeModules} from 'react-native';
 import {API_KEY} from './src/app/util/WeatherAPI';
 import styles from './src/app/feature/weather.style';
 import Weather from './src/app/feature/weather.component';
+import {checkPermissionLocation} from './src/app/util/PermissionUtils';
 
-const PermissionModule = NativeModules.PermissionModule;
+// const {PermissionModule} = NativeModules;
 
 class App extends React.Component {
+  _isMounted = false;
+
   constructor(props) {
     super(props);
 
@@ -27,38 +27,26 @@ class App extends React.Component {
   }
 
   componentDidMount() {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          this.fetchWeather(
-            position.coords.latitude,
-            position.coords.longitude,
-          );
-        },
-        (error) => {
-          this.setState({
-            error: `Error getting weather conditions`,
-          });
-        },
-      );
-    } else {
-      console.log(
-        `Navigator not available will be retrieved from 6.18202, 106.79421`,
-      );
-      this.fetchWeather(6.18202, 106.79421);
-    }
+    this._isMounted = true;
+    this.checkPermission();
   }
 
-  fetchWeather(lat, lon) {
-    PermissionModule.checkLocationPermission()
-      .then((hasPermission) => {
-        if (hasPermission) console.log(`Permission granted`);
-        else console.log(`Permission not granted`);
-      })
-      .catch((err) => {
-        console.error(`Error checking for permission`, err);
-      });
+  componentWillUnmount() {
+    this._isMounted = false;
+  }
 
+  checkPermission = async () => {
+    let lat = 0,
+      lon = 0;
+    try {
+      const position = await checkPermissionLocation();
+      this.fetchWeather(position.coords.latitude, position.coords.longitude);
+    } catch (error) {
+      console.log(`Permission error: ${error}`);
+    }
+  };
+
+  fetchWeather(lat, lon) {
     let reqStr = `http://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&APPID=${API_KEY}&units=metric`;
 
     console.log(reqStr);
@@ -68,17 +56,19 @@ class App extends React.Component {
       .then((json) => {
         console.log(json);
 
-        this.setState({
-          temperature: json.main.temp,
-          weatherCondition: json.weather[0].main,
-          isLoading: false,
-        });
+        if (this._isMounted)
+          this.setState({
+            temperature: json.main.temp,
+            weatherCondition: json.weather[0].main,
+            isLoading: false,
+          });
       })
       .catch((error) => {
-        this.setState({
-          isLoading: false,
-          error: 'Error occured while fetching data',
-        });
+        if (this._isMounted)
+          this.setState({
+            isLoading: false,
+            error: 'Error occured while fetching data',
+          });
       });
   }
 
